@@ -1,4 +1,4 @@
-service bluetoothtbd /system/bin/bluetoothtbd
-    class main
-    user bluetooth
-    group wakelock net_bt_admin bluetooth net_admin
+	service bluetoothtbd /system/bin/bluetoothtbd -v=9 --enable-on-start=true
+	
+	on property:bluetooth.status=on
+	    start bluetoothtbd
