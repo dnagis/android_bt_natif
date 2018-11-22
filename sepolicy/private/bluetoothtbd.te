@@ -1,0 +1,37 @@
+typeattribute bluetoothtbd coredomain;
+
+#hal_server_domain(bluetoothtbd, hal_bluetooth)
+
+
+
+init_daemon_domain(bluetoothtbd)
+binder_service(bluetoothtbd)
+wakelock_use(bluetoothtbd)
+
+allow bluetoothtbd self:capability { dac_override dac_read_search fsetid sys_nice };
+allow bluetoothtbd self:capability2 { wake_alarm };
+allow bluetoothtbd bluetooth_data_file:dir { read search write remove_name open add_name };
+allow bluetoothtbd bluetooth_data_file:file { ioctl read write create getattr setattr lock append unlink link rename open};
+
+allow bluetoothtbd bluetooth_logs_data_file:dir rw_dir_perms;
+allow bluetoothtbd bluetooth_logs_data_file:file create_file_perms;
+
+add_service(bluetoothtbd, bluetoothtbd_service)
+
+
+
+set_prop(bluetoothtbd, bluetooth_prop)
+get_prop(bluetoothtbd, bluetooth_prop)
+get_prop(bluetoothtbd, hwservicemanager_prop)
+
+#binder_call(bluetoothtbd, bluetoothtbd_service)
+binder_use(bluetoothtbd)
+hwbinder_use(bluetoothtbd)
+
+#ça c'est pour mon client perso: bt-vvnx
+allow bluetoothtbd self:binder { call transfer };
+
+
+add_hwservice(bluetoothtbd, bluetoothtbd_service)
+
+hal_client_domain(bluetoothtbd, hal_bluetooth)
