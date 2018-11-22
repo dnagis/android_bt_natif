@@ -178,6 +178,25 @@ cc_binary {
     ],
 }
 
+// VVNX
+// ========================================================
+cc_binary {
+    name: "bt-vvnx",
+    defaults: ["fluoride_defaults"],
+    local_include_dirs: ["example/vvnx"],
+    srcs: [
+        "example/vvnx/main.cc",
+    ],
+    static_libs: [
+        "libbluetooth-binder-common",
+    ],
+    include_dirs: ["external/sqlite/dist"],
+    shared_libs: [
+        "libbinder",
+        "libutils",
+        "libsqlite",
+    ],
+}
 
 cc_library_static {
     name: "libbluetoothtbd_hal",
