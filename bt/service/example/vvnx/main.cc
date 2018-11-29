@@ -212,7 +212,23 @@ void HandleRegisterBLEScanner(IBluetooth* bt_iface) {
   //tant qu'on a pas register le scanner on peut pas lancer un start scan car on a pas le bon int ble_scanner_id
     do {  sleep(1); } while  (ble_scanner_registering == true); 
 	bluetooth::ScanSettings settings;
+	
 	std::vector<android::bluetooth::ScanFilter> filters;  
+	
+	//essais en cours pour paramétrer ScanFilter via filters
+	
+	//filters[0].SetDeviceAddress("14:BB:6E:D6:1C:6B"); //compile mais segfault au runtime
+	
+	ScanFilter filter;
+    filter.set_device_name("Test Device Name");    
+    if(filter.SetDeviceAddress("14:BB:6E:D6:1C:6B")) {
+	    LOG(INFO) << "vvnx le SetDeviceAddress a marché!!!!";
+	}
+	
+	
+	
+	
+	
 	ble_scanner_iface->StartScan(ble_scanner_id.load(), settings, filters, &status);  
 	LOG(INFO) <<  "status StartScan: " << status;
   
@@ -300,7 +316,7 @@ int main(int argc, char* argv[]) {
   
   
   
-  sleep(30); //super moche je sais mais bon... le startup d'Android c'est pas simple!
+  //sleep(30); //Si tu lances au startup avec un .rc ... super moche je sais mais bon... le startup d'Android c'est pas simple!
 
   
 
