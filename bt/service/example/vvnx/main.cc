@@ -219,14 +219,17 @@ void HandleRegisterBLEScanner(IBluetooth* bt_iface) {
 	
 	//filters[0].SetDeviceAddress("14:BB:6E:D6:1C:6B"); //compile mais segfault au runtime
 	
+	//mon inspiration vient de: parcelable_unittest.cc
 	ScanFilter filter;
     filter.set_device_name("Test Device Name");    
     if(filter.SetDeviceAddress("14:BB:6E:D6:1C:6B")) {
 	    LOG(INFO) << "vvnx le SetDeviceAddress a marché!!!!";
 	}
 	
+	//Parcel parcel;
+	//parcel.writeParcelable((android::bluetooth::ScanFilter)filter); //voir parcel android api ref -> les méthodes de parcel
 	
-	
+	filters.push_back((android::bluetooth::ScanFilter)filter);
 	
 	
 	ble_scanner_iface->StartScan(ble_scanner_id.load(), settings, filters, &status);  
