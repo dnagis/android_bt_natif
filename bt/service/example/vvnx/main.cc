@@ -147,6 +147,21 @@ class CLIBluetoothLeScannerCallback
  
 	LOG(INFO) << "Scan result: " << scan_result.device_address() << " - Record: " << base::HexEncode(scan_result.scan_record().data(),
                               scan_result.scan_record().size()) << " - RSSI: " << scan_result.rssi();
+                              
+    //base::HexEncode et base::IntToString -> def dans external/libchrome/base/strings/string_number_conversions.[h,cc]
+    
+    const char * data_adv_vvnx = reinterpret_cast<const char*>(scan_result.scan_record().data());
+    LOG(INFO) << "temp: int_part -> " << base::IntToString(data_adv_vvnx[4]); 
+    LOG(INFO) << "temp: dec_part -> " << base::IntToString(data_adv_vvnx[5]);
+    
+    /* Vu comme j'en ai chié je laisse ça parce que c'est surement pas la dernière fois que tu galères avec des pointeurs et des vectors
+    const uint8_t * mon_pointeur = scan_result.scan_record().data(); pointeur vers la data	
+	uint8_t valeur = *mon_pointeur; valeur est la valeur qu'il y a à l'adresse définie par "premier"
+    LOG(INFO) << "1-> " << base::IntToString(valeur);   LOG(INFO) n'affiche pas les uint8_t, c'est vide. faut transfo en string
+    mon_pointeur ++; on va a l'adresse suivante (tu peux aussi faire += 1
+    valeur = *mon_pointeur;
+    LOG(INFO) << "2-> " << base::IntToString(valeur);*/                              
+             
     
     return Status::ok();
   }
