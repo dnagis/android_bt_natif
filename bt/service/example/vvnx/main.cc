@@ -3,6 +3,10 @@
  * pour builder placer dans system/bt/service/example/vvnx/ et modifier
  * le service/Android.bp (créer une target similaire à celle de bt-example-hr-server)
  * 
+ * adb push out/target/product/mido/system/bin/bt-vvnx /system/bin
+ * le context SELinux, c'est surtout pour faire lancer par init, à la mano pas la peine
+ * chcon u:object_r:bluetoothtbd_exec:s0 /system/bin/bt-vvnx
+ * 
  * 
  * Pour la comm bluetooth
  *  en face j'ai bluez avec leadv avec dedans:
@@ -146,23 +150,26 @@ class CLIBluetoothLeScannerCallback
       const android::bluetooth::ScanResult& scan_result) override {
  
 	LOG(INFO) << "Scan result: " << scan_result.device_address() << " - Record: " << base::HexEncode(scan_result.scan_record().data(),
-                              scan_result.scan_record().size()) << " - RSSI: " << scan_result.rssi();
-                              
+                              scan_result.scan_record().size()) << " - RSSI: " << scan_result.rssi() << " - Size: " << scan_result.scan_record().size();
+    
+
+       
     //base::HexEncode et base::IntToString -> def dans external/libchrome/base/strings/string_number_conversions.[h,cc]
     
     const char * data_adv_vvnx = reinterpret_cast<const char*>(scan_result.scan_record().data());
-    LOG(INFO) << "temp: int_part -> " << base::IntToString(data_adv_vvnx[4]); 
-    LOG(INFO) << "temp: dec_part -> " << base::IntToString(data_adv_vvnx[5]);
+    LOG(INFO) << "temp: temp_pos?: " << base::IntToString(data_adv_vvnx[4]) << "  temp: " << base::IntToString(data_adv_vvnx[5]) << "." << base::IntToString(data_adv_vvnx[6]);;
     
     /* Vu comme j'en ai chié je laisse ça parce que c'est surement pas la dernière fois que tu galères avec des pointeurs et des vectors
-    const uint8_t * mon_pointeur = scan_result.scan_record().data(); pointeur vers la data	
+    const uint8_t * mon_pointeur = scan_result.scan_record().data(); *****pointeur****** vers la data, donc on est bien d'accord: c'est une adresse pas une valeur	
 	uint8_t valeur = *mon_pointeur; valeur est la valeur qu'il y a à l'adresse définie par "premier"
     LOG(INFO) << "1-> " << base::IntToString(valeur);   LOG(INFO) n'affiche pas les uint8_t, c'est vide. faut transfo en string
     mon_pointeur ++; on va a l'adresse suivante (tu peux aussi faire += 1
     valeur = *mon_pointeur;
-    LOG(INFO) << "2-> " << base::IntToString(valeur);*/                              
-             
+    LOG(INFO) << "2-> " << base::IntToString(valeur);*/
     
+      
+
+
     return Status::ok();
   }
 
@@ -227,26 +234,7 @@ void HandleRegisterBLEScanner(IBluetooth* bt_iface) {
   //tant qu'on a pas register le scanner on peut pas lancer un start scan car on a pas le bon int ble_scanner_id
     do {  sleep(1); } while  (ble_scanner_registering == true); 
 	bluetooth::ScanSettings settings;
-	
 	std::vector<android::bluetooth::ScanFilter> filters;  
-	
-	//essais en cours pour paramétrer ScanFilter via filters
-	
-	//filters[0].SetDeviceAddress("14:BB:6E:D6:1C:6B"); //compile mais segfault au runtime
-	
-	//mon inspiration vient de: parcelable_unittest.cc
-	ScanFilter filter;
-    filter.set_device_name("Test Device Name");    
-    if(filter.SetDeviceAddress("14:BB:6E:D6:1C:6B")) {
-	    LOG(INFO) << "vvnx le SetDeviceAddress a marché!!!!";
-	}
-	
-	//Parcel parcel;
-	//parcel.writeParcelable((android::bluetooth::ScanFilter)filter); //voir parcel android api ref -> les méthodes de parcel
-	
-	filters.push_back((android::bluetooth::ScanFilter)filter);
-	
-	
 	ble_scanner_iface->StartScan(ble_scanner_id.load(), settings, filters, &status);  
 	LOG(INFO) <<  "status StartScan: " << status;
   
@@ -334,7 +322,7 @@ int main(int argc, char* argv[]) {
   
   
   
-  //sleep(30); //Si tu lances au startup avec un .rc ... super moche je sais mais bon... le startup d'Android c'est pas simple!
+  //sleep(30); //super moche je sais mais bon... le startup d'Android c'est pas simple!
 
   
 
