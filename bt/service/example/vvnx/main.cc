@@ -39,6 +39,8 @@
  */
 #include <iostream>
 #include <string>
+#include <thread>
+#include <sys/time.h>
 
 //external/libchrome/base/
 #include <base/at_exit.h>
@@ -93,7 +95,9 @@ std::atomic_bool ble_scanner_registering(false);
 std::atomic_int ble_scanner_id(0);
 
 //void PrintVvnx(const string& message) {  cout << message << endl; }
- 
+
+
+
 class CLIBluetoothLowEnergyCallback
     : public android::bluetooth::BnBluetoothLowEnergyCallback {
  public:
@@ -149,27 +153,52 @@ class CLIBluetoothLeScannerCallback
   Status OnScanResult(
       const android::bluetooth::ScanResult& scan_result) override {
  
-	LOG(INFO) << "Scan result: " << scan_result.device_address() << " - Record: " << base::HexEncode(scan_result.scan_record().data(),
-                              scan_result.scan_record().size()) << " - RSSI: " << scan_result.rssi() << " - Size: " << scan_result.scan_record().size();
+	//LOG(INFO) << "Scan result: " << scan_result.device_address() << " - Record: " << base::HexEncode(scan_result.scan_record().data(),
+	//                          scan_result.scan_record().size()) << " - RSSI: " << scan_result.rssi() << " - Size: " << scan_result.scan_record().size();
+	//base::HexEncode et base::IntToString -> def dans external/libchrome/base/strings/string_number_conversions.[h,cc]
     
-
-       
-    //base::HexEncode et base::IntToString -> def dans external/libchrome/base/strings/string_number_conversions.[h,cc]
+    if (scan_result.device_address().compare("30:AE:A4:04:C8:2E") == 0) {
+		struct timeval curr_tv;
+		gettimeofday(&curr_tv, NULL);  
+		long time_now;
+		time_now = curr_tv.tv_sec;
+				  
+	    const char * data_adv_vvnx = reinterpret_cast<const char*>(scan_result.scan_record().data());
+	    LOG(INFO) << "temp: temp_pos?: " << base::IntToString(data_adv_vvnx[4]) << "  temp: " << base::IntToString(data_adv_vvnx[5]) << "." << base::IntToString(data_adv_vvnx[6]) << " time_now: " << time_now;
+		
+		/* Vu comme j'en ai chié je laisse ça parce que c'est surement pas la dernière fois que tu galères avec des pointeurs et des vectors
+		const uint8_t * mon_pointeur = scan_result.scan_record().data(); *****pointeur****** vers la data, donc on est bien d'accord: c'est une adresse pas une valeur	
+		uint8_t valeur = *mon_pointeur; valeur est la valeur qu'il y a à l'adresse définie par "premier"
+		LOG(INFO) << "1-> " << base::IntToString(valeur);   LOG(INFO) n'affiche pas les uint8_t, c'est vide. faut transfo en string
+		mon_pointeur ++; on va a l'adresse suivante (tu peux aussi faire += 1
+		valeur = *mon_pointeur;
+		LOG(INFO) << "2-> " << base::IntToString(valeur);*/
+		
+		std::string temp = base::IntToString(data_adv_vvnx[5]) + "." + base::IntToString(data_adv_vvnx[6]);
+				
+		sqlite3 *db;
+		int rc;		  
+		//pourquoi /data/misc/bluedroid/ ??? --> parce que sepolicy/private/file_contexts et bluetoothtbd.te
+		rc = sqlite3_open("/data/misc/bluedroid/bt_log_vvnx.db", &db);
+		//CREATE TABLE tbl1(date integer, temp text);
+		if( rc )
+			LOG(ERROR) << "Can't open database: " << sqlite3_errmsg(db) ;
+					
+		char *zErrMsg = 0;	
+				
+		std::string stmt = "insert into tbl1 values(" + to_string(time_now) + ", '" + temp + " ');";
+		
+		rc = sqlite3_exec(db, stmt.c_str(), NULL, 0, &zErrMsg);
+		
+		if( rc!=SQLITE_OK )
+			{
+			LOG(ERROR) << "SQL error: " << sqlite3_errmsg(db);
+			sqlite3_free(zErrMsg);
+			}
+				
+		
+		}
     
-    const char * data_adv_vvnx = reinterpret_cast<const char*>(scan_result.scan_record().data());
-    LOG(INFO) << "temp: temp_pos?: " << base::IntToString(data_adv_vvnx[4]) << "  temp: " << base::IntToString(data_adv_vvnx[5]) << "." << base::IntToString(data_adv_vvnx[6]);;
-    
-    /* Vu comme j'en ai chié je laisse ça parce que c'est surement pas la dernière fois que tu galères avec des pointeurs et des vectors
-    const uint8_t * mon_pointeur = scan_result.scan_record().data(); *****pointeur****** vers la data, donc on est bien d'accord: c'est une adresse pas une valeur	
-	uint8_t valeur = *mon_pointeur; valeur est la valeur qu'il y a à l'adresse définie par "premier"
-    LOG(INFO) << "1-> " << base::IntToString(valeur);   LOG(INFO) n'affiche pas les uint8_t, c'est vide. faut transfo en string
-    mon_pointeur ++; on va a l'adresse suivante (tu peux aussi faire += 1
-    valeur = *mon_pointeur;
-    LOG(INFO) << "2-> " << base::IntToString(valeur);*/
-    
-      
-
-
     return Status::ok();
   }
 
@@ -248,6 +277,13 @@ void QuitMessageLoop() {
   base::MessageLoop::current()->QuitNow();
 }
 
+void AutoKillVvnx() {  
+	LOG(INFO) << "Début AutoKill, sleep 60 secondes";
+	sleep(60);
+	LOG(INFO) << "AutoKill fin sleep on tue message loop";
+	QuitMessageLoop();	
+	}
+
 // Handles the case where the Bluetooth process dies.
 class BluetoothDeathRecipient : public android::IBinder::DeathRecipient {
  public:
@@ -280,10 +316,6 @@ int main(int argc, char* argv[]) {
   base::CommandLine::Init(argc, argv);
   logging::LoggingSettings log_settings;
   
-  sqlite3 *db;
-  int rc;
-  
-
   // Initialize global logging based on command-line parameters (this is a
   // libchrome pattern).
   if (!logging::InitLogging(log_settings)) {
@@ -297,32 +329,7 @@ int main(int argc, char* argv[]) {
   
   LOG(INFO) << "Starting VVNX début de main";
   
-  //pourquoi /data/misc/bluedroid/ ??? --> parce que sepolicy/private/file_contexts et bluetoothtbd.te
-  rc = sqlite3_open("/data/misc/bluedroid/bt_log_vvnx.db", &db);
-
-  if( rc )
-	{
-		LOG(ERROR) << "Can't open database: " << sqlite3_errmsg(db) ;
-	} 
-  else
-	{
-		LOG(INFO) << "Open database successfully";
-	}
-	
-  char *zErrMsg = 0;	
-  char stmt[] = "insert into tbl1 values('essai', 12);";
-  
-  rc = sqlite3_exec(db, stmt, NULL, 0, &zErrMsg);
-  
-  if( rc!=SQLITE_OK )
-		{
-			LOG(ERROR) << "SQL error: " << sqlite3_errmsg(db);
-			sqlite3_free(zErrMsg);
-		}
-  
-  
-  
-  //sleep(30); //super moche je sais mais bon... le startup d'Android c'est pas simple!
+  sleep(300); //30 sec si démarrage par .rc; super moche je sais mais bon... le startup d'Android c'est pas simple!
 
   
 
@@ -359,10 +366,17 @@ int main(int argc, char* argv[]) {
   // server").
   android::ProcessState::self()->startThreadPool();
   
+  
+  std::thread t1(AutoKillVvnx);
+  
+  
   //Mes actions (trouvée en CLI avec le client à la mano)
+  LOG(INFO) << "On va lancer les HandleRegisterBLE";
   HandleRegisterBLE(bt_iface.get());
   HandleRegisterBLEScanner(bt_iface.get());
-
+  
+  
+  LOG(INFO) << "On va lancer le message loop";
   main_loop.Run();
 
   LOG(INFO) << "Exiting";
