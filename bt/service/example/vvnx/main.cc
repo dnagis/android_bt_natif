@@ -262,10 +262,16 @@ void HandleRegisterBLEScanner(IBluetooth* bt_iface) {
   
   //tant qu'on a pas register le scanner on peut pas lancer un start scan car on a pas le bon int ble_scanner_id
     do {  sleep(1); } while  (ble_scanner_registering == true); 
+    
+  //on scanne  
 	bluetooth::ScanSettings settings;
 	std::vector<android::bluetooth::ScanFilter> filters;  
 	ble_scanner_iface->StartScan(ble_scanner_id.load(), settings, filters, &status);  
-	LOG(INFO) <<  "status StartScan: " << status;
+	LOG(INFO) <<  "StartScan lancé status :" << status;
+	sleep (40); //les résultats de scan arrivent dans la callback.
+	ble_scanner_iface->StopScan(ble_scanner_id.load(), &status); //stop scan
+	LOG(INFO) <<  "StopScan status :" << status;
+	android::IPCThreadState::self()->stopProcess();
   
 }
 
@@ -277,12 +283,13 @@ void QuitMessageLoop() {
   base::MessageLoop::current()->QuitNow();
 }
 
-void AutoKillVvnx() {  
+/*void AutoKillVvnx() {  
 	LOG(INFO) << "Début AutoKill, sleep 60 secondes";
 	sleep(60);
 	LOG(INFO) << "AutoKill fin sleep on tue message loop";
+	android::IPCThreadState::self()->stopProcess();
 	QuitMessageLoop();	
-	}
+	}*/
 
 // Handles the case where the Bluetooth process dies.
 class BluetoothDeathRecipient : public android::IBinder::DeathRecipient {
@@ -327,9 +334,11 @@ int main(int argc, char* argv[]) {
   // notifications.
   base::MessageLoop main_loop;
   
-  LOG(INFO) << "Starting VVNX début de main";
+  int dodo_initial = 20; //30 sec si démarrage par .rc; super moche je sais mais bon... le startup d'Android c'est pas simple!
   
-  sleep(300); //30 sec si démarrage par .rc; super moche je sais mais bon... le startup d'Android c'est pas simple!
+  LOG(INFO) << "Starting VVNX début de main on sleep " << dodo_initial << "s";
+  
+  sleep(dodo_initial); 
 
   
 
@@ -367,7 +376,7 @@ int main(int argc, char* argv[]) {
   android::ProcessState::self()->startThreadPool();
   
   
-  std::thread t1(AutoKillVvnx);
+  //std::thread t1(AutoKillVvnx);
   
   
   //Mes actions (trouvée en CLI avec le client à la mano)
@@ -376,8 +385,8 @@ int main(int argc, char* argv[]) {
   HandleRegisterBLEScanner(bt_iface.get());
   
   
-  LOG(INFO) << "On va lancer le message loop";
-  main_loop.Run();
+  //LOG(INFO) << "On va lancer le message loop";
+  //main_loop.Run();
 
   LOG(INFO) << "Exiting";
   return EXIT_SUCCESS;

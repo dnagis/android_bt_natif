@@ -1,4 +1,11 @@
-	service bluetoothtbd /system/bin/bluetoothtbd -v=9 --enable-on-start=true
-	
-	on property:bluetooth.status=on
-	    start bluetoothtbd
+service bluetoothtbd /system/bin/bluetoothtbd --enable-on-start=true
+#    onrestart restart bt-vvnx
+
+#service bt-vvnx /system/bin/bt-vvnx
+
+#on property:bluetooth.status=on
+#    start bluetoothtbd
+#    start bt-vvnx
+
+
+

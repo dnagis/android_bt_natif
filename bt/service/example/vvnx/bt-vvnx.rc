@@ -1,0 +1,5 @@
+service bt-vvnx /system/bin/bt-vvnx
+    onrestart restart bluetoothtbd
+
+on property:bluetooth.status=on
+    start bt-vvnx
