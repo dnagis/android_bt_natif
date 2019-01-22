@@ -153,8 +153,8 @@ class CLIBluetoothLeScannerCallback
   Status OnScanResult(
       const android::bluetooth::ScanResult& scan_result) override {
  
-	LOG(INFO) << "Scan result: " << scan_result.device_address() << " - Record: " << base::HexEncode(scan_result.scan_record().data(),
-	                          scan_result.scan_record().size()) << " - RSSI: " << scan_result.rssi() << " - Size: " << scan_result.scan_record().size();
+	//LOG(INFO) << "Scan result: " << scan_result.device_address() << " - Record: " << base::HexEncode(scan_result.scan_record().data(),
+	//                          scan_result.scan_record().size()) << " - RSSI: " << scan_result.rssi() << " - Size: " << scan_result.scan_record().size();
 	//base::HexEncode et base::IntToString -> def dans external/libchrome/base/strings/string_number_conversions.[h,cc]
     
     if (scan_result.device_address().compare("30:AE:A4:04:C8:2E") == 0) {
@@ -268,7 +268,7 @@ void HandleRegisterBLEScanner(IBluetooth* bt_iface) {
 	std::vector<android::bluetooth::ScanFilter> filters;  
 	ble_scanner_iface->StartScan(ble_scanner_id.load(), settings, filters, &status);  
 	LOG(INFO) <<  "StartScan lancé status :" << status;
-	sleep (1); //pendant ce temps les résultats de scan arrivent dans la callback.
+	sleep (40); //les résultats de scan arrivent dans la callback.
 	ble_scanner_iface->StopScan(ble_scanner_id.load(), &status); //stop scan
 	LOG(INFO) <<  "StopScan status :" << status;
 	android::IPCThreadState::self()->stopProcess();
@@ -334,10 +334,42 @@ int main(int argc, char* argv[]) {
   // notifications.
   base::MessageLoop main_loop;
   
-
-  int dodo_initial = 120; //30 sec si démarrage par .rc; super moche je sais mais bon... le startup d'Android c'est pas simple!
+	sleep(30);
+	struct timeval curr_tv;
+	gettimeofday(&curr_tv, NULL);  
+	long time_now;
+	time_now = curr_tv.tv_sec;
+	sqlite3 *db;
+	int rc;		  
+	//pourquoi /data/misc/bluedroid/ ??? --> parce que sepolicy/private/file_contexts et bluetoothtbd.te
+	rc = sqlite3_open("/data/misc/bluedroid/bt_log_vvnx.db", &db);
+	//CREATE TABLE tbl1(date integer, temp text);
+	if( rc )
+	LOG(ERROR) << "Can't open database: " << sqlite3_errmsg(db) ;
+			
+	char *zErrMsg = 0;	
+		
+	std::string stmt = "insert into tbl1 values(" + to_string(time_now) + ", '99.99');";
+	
+	rc = sqlite3_exec(db, stmt.c_str(), NULL, 0, &zErrMsg);
+	
+	if( rc!=SQLITE_OK )
+	{
+	LOG(ERROR) << "SQL error: " << sqlite3_errmsg(db);
+	sqlite3_free(zErrMsg);
+	}
+  
+  
+  
+  
+  
+  
+  int dodo_initial = 1800; //30 sec si démarrage par .rc; super moche je sais mais bon... le startup d'Android c'est pas simple!
+  
   LOG(INFO) << "Starting VVNX début de main on sleep " << dodo_initial << "s";
+  
   sleep(dodo_initial); 
+
   
 
   sp<IBluetooth> bt_iface;
@@ -379,9 +411,7 @@ int main(int argc, char* argv[]) {
   
   //Mes actions (trouvée en CLI avec le client à la mano)
   LOG(INFO) << "On va lancer les HandleRegisterBLE";
-  sleep(5);
   HandleRegisterBLE(bt_iface.get());
-  sleep(5);
   HandleRegisterBLEScanner(bt_iface.get());
   
   
